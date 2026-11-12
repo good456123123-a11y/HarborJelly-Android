@@ -3,6 +3,7 @@ extends Node3D
 ## No proprietary model downloads, textures, API keys or network needed.
 
 const JELLY_SHADER: Shader = preload("res://shaders/jelly.gdshader")
+const JELLY_SIDE_SHADER: Shader = preload("res://shaders/jelly_side.gdshader")
 const WATER_W = 24.0
 const WATER_D = 17.5
 const SEA_LEVEL = 0.19
@@ -14,6 +15,8 @@ const COLORS = [
 var world: Node3D
 var camera: Camera3D
 var water_material: ShaderMaterial
+var side_material: ShaderMaterial
+var edge_shake := 0.0
 var angle := -0.69
 var distance := 25.4
 var elapsed := 0.0
@@ -49,7 +52,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
     elapsed += delta
     water_material.set_shader_parameter("clock", elapsed)
+    side_material.set_shader_parameter("clock", elapsed)
     _update_pressing(delta)
+    edge_shake = maxf(0.0, edge_shake - delta * 0.14)
+    side_material.set_shader_parameter("edge_shake", edge_shake)
     # All floating boats sample the same wave function used by the water shader.
     # Surface height, pitch and roll therefore respond to actual finger ripples.
     for item in floaters:
@@ -86,6 +92,8 @@ func _update_pressing(delta: float) -> void:
         finger_b.z = lerpf(finger_b.z, 0.0, response)
     water_material.set_shader_parameter("finger_a", finger_a)
     water_material.set_shader_parameter("finger_b", finger_b)
+    side_material.set_shader_parameter("finger_a", finger_a)
+    side_material.set_shader_parameter("finger_b", finger_b)
 
 
 func _finger_height(point: Vector2, finger: Vector4) -> float:
@@ -164,8 +172,7 @@ func _create_world() -> void:
 
 func _build_jelly() -> void:
     _box(world, Vector3(0, -0.9, 0), Vector3(WATER_W + 0.3, 0.12, WATER_D + 0.3), Color("d4cbbd"))
-    var jelly := _box(world, Vector3(0, -0.31, 0), Vector3(WATER_W, 1.10, WATER_D), Color(0.024, 0.24, 0.32, 0.74), 0.18, 0.0)
-    jelly.name = "TranslucentJellyBlock"
+    _build_deformable_jelly_walls()
     _box(world, Vector3(0, -0.76, 0), Vector3(WATER_W - 0.1, 0.13, WATER_D - 0.1), Color("124658"), 0.6)
     var mesh := PlaneMesh.new()
     mesh.size = Vector2(WATER_W - 0.04, WATER_D - 0.04)
@@ -180,8 +187,60 @@ func _build_jelly() -> void:
     surface.material_override = water_material
     world.add_child(surface)
     water_material.set_shader_parameter("wobble", wobble_strength)
+    side_material.set_shader_parameter("wobble", wobble_strength)
     # A thin light-colored base makes the sea look like a physical tabletop diorama.
     _box(world, Vector3(0, -0.98, 0), Vector3(25.25, 0.19, 18.75), Color("b7b3a7"))
+
+func _build_deformable_jelly_walls() -> void:
+    # Four subdivided sidewalls: soft at the top, anchored at the bottom.
+    var verts := PackedVector3Array()
+    var normals := PackedVector3Array()
+    var segment_count := 72
+    var vertical_count := 10
+    for side in range(4):
+        var face_normal := Vector3.ZERO
+        match side:
+            0: face_normal = Vector3(0.0, 0.0, 1.0)
+            1: face_normal = Vector3(1.0, 0.0, 0.0)
+            2: face_normal = Vector3(0.0, 0.0, -1.0)
+            3: face_normal = Vector3(-1.0, 0.0, 0.0)
+        for seg in range(segment_count):
+            var u0 := float(seg) / float(segment_count)
+            var u1 := float(seg + 1) / float(segment_count)
+            for level in range(vertical_count):
+                var h0 := lerpf(-0.82, SEA_LEVEL, float(level) / float(vertical_count))
+                var h1 := lerpf(-0.82, SEA_LEVEL, float(level + 1) / float(vertical_count))
+                var a := _jelly_wall_position(side, u0, h0)
+                var b := _jelly_wall_position(side, u1, h0)
+                var c := _jelly_wall_position(side, u1, h1)
+                var d := _jelly_wall_position(side, u0, h1)
+                for v in [a, b, c, a, c, d]:
+                    verts.append(v)
+                    normals.append(face_normal)
+    var arrays := []
+    arrays.resize(Mesh.ARRAY_MAX)
+    arrays[Mesh.ARRAY_VERTEX] = verts
+    arrays[Mesh.ARRAY_NORMAL] = normals
+    var mesh := ArrayMesh.new()
+    mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+    var walls := MeshInstance3D.new()
+    walls.name = "DeformableJellyWalls"
+    walls.mesh = mesh
+    side_material = ShaderMaterial.new()
+    side_material.shader = JELLY_SIDE_SHADER
+    walls.material_override = side_material
+    world.add_child(walls)
+
+
+func _jelly_wall_position(side: int, u: float, y: float) -> Vector3:
+    var half_w := (WATER_W - 0.04) * 0.5
+    var half_d := (WATER_D - 0.04) * 0.5
+    match side:
+        0: return Vector3(lerpf(-half_w, half_w, u), y, half_d)
+        1: return Vector3(half_w, y, lerpf(half_d, -half_d, u))
+        2: return Vector3(lerpf(half_w, -half_w, u), y, -half_d)
+        _: return Vector3(-half_w, y, lerpf(-half_d, half_d, u))
+
 
 func _build_quays() -> void:
     # Rear shoreline (pastel old town) and harbour cargo apron.
@@ -469,6 +528,7 @@ func _button(parent: Node, title: String, callback: Callable) -> void:
 func _change_wobble(value: float) -> void:
     wobble_strength = value
     water_material.set_shader_parameter("wobble", value)
+    side_material.set_shader_parameter("wobble", value)
 
 func _horn() -> void:
     horn_count += 1
@@ -493,9 +553,13 @@ func _reset() -> void:
     finger_b.z = 0.0
     water_material.set_shader_parameter("finger_a", finger_a)
     water_material.set_shader_parameter("finger_b", finger_b)
+    side_material.set_shader_parameter("finger_a", finger_a)
+    side_material.set_shader_parameter("finger_b", finger_b)
+    edge_shake = 0.0
     for i in range(splash_impulses.size()):
         splash_impulses[i] = Vector4(100.0, 100.0, -100.0, 0.0)
         water_material.set_shader_parameter(["hit_a", "hit_b", "hit_c", "hit_d"][i], splash_impulses[i])
+        side_material.set_shader_parameter(["hit_a", "hit_b", "hit_c", "hit_d"][i], splash_impulses[i])
 
 func _splash(point: Vector2, force: float = 0.15) -> void:
     var slot: int = impulse_slot % splash_impulses.size()
@@ -503,6 +567,8 @@ func _splash(point: Vector2, force: float = 0.15) -> void:
     impulse_slot += 1
     splash_impulses[slot] = Vector4(point.x, point.y, elapsed, force)
     water_material.set_shader_parameter(key, splash_impulses[slot])
+    side_material.set_shader_parameter(key, splash_impulses[slot])
+    edge_shake = clampf(edge_shake + force * 0.6, 0.0, 0.35)
     last_splash = elapsed
 
 func _water_hit(screen_pos: Vector2) -> Variant:
