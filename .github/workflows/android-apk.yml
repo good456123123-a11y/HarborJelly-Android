@@ -8,6 +8,8 @@ on:
       - 'harbor-source.tar.xz.b64'
       - 'export_presets.cfg'
       - 'project.godot'
+      - 'scripts/harbor.gd'
+      - 'shaders/jelly.gdshader'
       - '.github/workflows/android-apk.yml'
 
 permissions:
@@ -27,7 +29,7 @@ jobs:
           set -eu
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xz-utils
-          base64 -d harbor-source.tar.xz.b64 | tar -xJf - --exclude='export_presets.cfg' --exclude='project.godot'
+          base64 -d harbor-source.tar.xz.b64 | tar -xJf - --exclude='export_presets.cfg' --exclude='project.godot' --exclude='scripts/harbor.gd' --exclude='shaders/jelly.gdshader'
           test -f project.godot
           test -f scripts/harbor.gd
       - name: Publish extracted source files
