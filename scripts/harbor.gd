@@ -568,7 +568,7 @@ func _splash(point: Vector2, force: float = 0.15) -> void:
     splash_impulses[slot] = Vector4(point.x, point.y, elapsed, force)
     water_material.set_shader_parameter(key, splash_impulses[slot])
     side_material.set_shader_parameter(key, splash_impulses[slot])
-    edge_shake = clampf(edge_shake + force * 0.6, 0.0, 0.35)
+    edge_shake = clampf(edge_shake + 0.16 + force * 0.85, 0.0, 0.65)
     last_splash = elapsed
 
 func _water_hit(screen_pos: Vector2) -> Variant:
