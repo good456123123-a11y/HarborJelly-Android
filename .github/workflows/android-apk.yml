@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'harbor-source.tar.xz.b64'
+      - 'export_presets.cfg'
       - '.github/workflows/android-apk.yml'
 
 permissions:
