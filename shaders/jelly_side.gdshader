@@ -45,7 +45,7 @@ void vertex() {
     float h = height_at(p);
     VERTEX.y += h * flexible; // Continuous with surface at upper edge.
     float bend = (0.016 * sin(clock*1.6 + p.x*0.57 + p.y*0.45)
-                + edge_shake * 0.20 * sin(clock*6.6 + p.x*0.32 - p.y*0.25)) * flexible;
+                + edge_shake * 0.65 * sin(clock*6.6 + p.x*0.32 - p.y*0.25)) * flexible;
     VERTEX.xz += NORMAL.xz * bend;
     v_layer = t;
     v_pos = p;
