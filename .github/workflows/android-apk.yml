@@ -23,6 +23,8 @@ jobs:
         shell: bash
         run: |
           set -eu
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xz-utils
           base64 -d harbor-source.tar.xz.b64 | tar -xJf -
           test -f project.godot
           test -f scripts/harbor.gd
