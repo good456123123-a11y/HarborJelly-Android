@@ -7,15 +7,15 @@ const WATER_W = 24.0
 const WATER_D = 17.5
 const SEA_LEVEL = 0.19
 const COLORS = [
-    Color("d56b58"), Color("e2ad55"), Color("e8cf76"),
-    Color("4f9b84"), Color("619eba"), Color("8375b4"), Color("ce87ab")
+    Color("c7604d"), Color("d3904f"), Color("c7ac52"),
+    Color("39816d"), Color("447d9d"), Color("786c9e"), Color("b46584")
 ]
 
 var world: Node3D
 var camera: Camera3D
 var water_material: ShaderMaterial
 var angle := -0.69
-var distance := 26.8
+var distance := 25.4
 var elapsed := 0.0
 var impulse_slot := 0
 var last_splash := -1.0
@@ -134,16 +134,16 @@ func _create_world() -> void:
     var environment := WorldEnvironment.new()
     environment.environment = Environment.new()
     environment.environment.background_mode = Environment.BG_COLOR
-    environment.environment.background_color = Color("dce8e3")
+    environment.environment.background_color = Color("cbd9de")
     environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-    environment.environment.ambient_light_color = Color("ffffff")
-    environment.environment.ambient_light_energy = 0.55
+    environment.environment.ambient_light_color = Color("d6e0e4")
+    environment.environment.ambient_light_energy = 0.37
     environment.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     add_child(environment)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-55.0, -29.0, 0.0)
-    sun.light_energy = 0.99
-    sun.light_color = Color("ffedce")
+    sun.light_energy = 0.76
+    sun.light_color = Color("ffeed5")
     sun.shadow_enabled = true
     add_child(sun)
     camera = Camera3D.new()
@@ -164,13 +164,13 @@ func _create_world() -> void:
 
 func _build_jelly() -> void:
     _box(world, Vector3(0, -0.9, 0), Vector3(WATER_W + 0.3, 0.12, WATER_D + 0.3), Color("d4cbbd"))
-    var jelly := _box(world, Vector3(0, -0.31, 0), Vector3(WATER_W, 1.10, WATER_D), Color(0.035, 0.51, 0.53, 0.78), 0.26, 0.05)
+    var jelly := _box(world, Vector3(0, -0.31, 0), Vector3(WATER_W, 1.10, WATER_D), Color(0.024, 0.24, 0.32, 0.74), 0.18, 0.0)
     jelly.name = "TranslucentJellyBlock"
-    _box(world, Vector3(0, -0.76, 0), Vector3(WATER_W - 0.1, 0.13, WATER_D - 0.1), Color("217486"), 0.6)
+    _box(world, Vector3(0, -0.76, 0), Vector3(WATER_W - 0.1, 0.13, WATER_D - 0.1), Color("124658"), 0.6)
     var mesh := PlaneMesh.new()
     mesh.size = Vector2(WATER_W - 0.04, WATER_D - 0.04)
-    mesh.subdivide_width = 120
-    mesh.subdivide_depth = 88
+    mesh.subdivide_width = 150
+    mesh.subdivide_depth = 100
     var surface := MeshInstance3D.new()
     surface.name = "InteractiveJellySurface"
     surface.mesh = mesh
@@ -181,26 +181,32 @@ func _build_jelly() -> void:
     world.add_child(surface)
     water_material.set_shader_parameter("wobble", wobble_strength)
     # A thin light-colored base makes the sea look like a physical tabletop diorama.
-    _box(world, Vector3(0, -0.98, 0), Vector3(25.25, 0.19, 18.75), Color("d3d1c4"))
+    _box(world, Vector3(0, -0.98, 0), Vector3(25.25, 0.19, 18.75), Color("b7b3a7"))
 
 func _build_quays() -> void:
     # Rear shoreline (pastel old town) and harbour cargo apron.
-    _box(world, Vector3(0.8, 0.52, -8.25), Vector3(21.4, 0.82, 4.2), Color("b8b7ac"))
-    _box(world, Vector3(0.8, 0.98, -7.16), Vector3(21.4, 0.13, 1.37), Color("d1c0a6"))
+    _box(world, Vector3(0.8, 0.52, -8.25), Vector3(21.4, 0.82, 4.2), Color("909a92"))
+    _box(world, Vector3(0.8, 0.98, -7.16), Vector3(21.4, 0.13, 1.37), Color("bca995"))
     _box(world, Vector3(10.55, 0.57, -1.15), Vector3(2.40, 0.76, 14.65), Color("858f8a"))
-    _box(world, Vector3(10.42, 0.98, -1.15), Vector3(1.85, 0.10, 14.65), Color("bbb3a3"))
+    _box(world, Vector3(10.42, 0.98, -1.15), Vector3(1.85, 0.10, 14.65), Color("999e94"))
     # Stone cap line and narrow warehouse pier along the back.
     for i in range(45):
         _box(world, Vector3(-10.2 + float(i) * 0.49, 1.05, -6.45), Vector3(0.08, 0.31, 0.25), Color("898d88"))
     for i in range(26):
         var xx := -9.6 + float(i) * 0.75
-        _box(world, Vector3(xx, 0.44, -5.96), Vector3(0.45, 0.13, 0.12), Color("ece4d9"))
+        _box(world, Vector3(xx, 0.44, -5.96), Vector3(0.45, 0.13, 0.12), Color("c9c4b6"))
     # Little wooden jetty, sticking out into the water.
     for i in range(8):
-        _box(world, Vector3(7.0, 0.52, -4.1 + i * 0.47), Vector3(1.8, 0.13, 0.37), Color("a57858"))
+        _box(world, Vector3(7.0, 0.52, -4.1 + i * 0.47), Vector3(1.8, 0.13, 0.37), Color("825a3f"))
+    # Long grain on individual wooden planks, plus dark metal nail heads.
+    for i in range(8):
+        var deck_z := -4.1 + float(i) * 0.47
+        _box(world, Vector3(7.0, 0.602, deck_z - 0.13), Vector3(1.58, 0.012, 0.015), Color("684a37"), 0.99)
+        for deck_x in [6.25, 7.75]:
+            _box(world, Vector3(deck_x, 0.613, deck_z), Vector3(0.048, 0.012, 0.048), Color("555e5b"), 0.44)
     for x in [6.2, 7.8]:
         for z in [-3.9, -2.3, -0.8]:
-            _cylinder(world, Vector3(x, 0.14, z), 0.11, 1.27, Color("806e5c"))
+            _cylinder(world, Vector3(x, 0.14, z), 0.11, 1.27, Color("6c4b35"))
 
 func _build_town() -> void:
     # Dense toy town: individually shaped houses rather than a blank backdrop.
@@ -225,12 +231,21 @@ func _house(position: Vector3, size: Vector3, color: Color, style: int) -> void:
     var p := Node3D.new()
     p.position = position
     world.add_child(p)
-    _box(p, Vector3(0, size.y / 2.0, 0), size, color)
-    _box(p, Vector3(0, size.y + 0.08, 0), Vector3(size.x * 1.15, 0.17, size.z * 1.2), Color("d68a72") if style % 2 == 0 else Color("b1b7bb"))
-    var w := Color("efe6cb")
-    _box(p, Vector3(-size.x * 0.24, size.y * 0.55, size.z * 0.506), Vector3(0.13, 0.22, 0.026), w)
-    _box(p, Vector3(size.x * 0.24, size.y * 0.55, size.z * 0.506), Vector3(0.13, 0.22, 0.026), w)
-    _box(p, Vector3(0, 0.21, size.z * 0.514), Vector3(0.16, 0.37, 0.027), Color("8b857c"))
+    _box(p, Vector3(0, size.y / 2.0, 0), size, color, 0.86)
+    # Dark slate or terracotta roofs give each colorful facade depth.
+    var roof_color: Color = [Color("995b49"), Color("526b75"), Color("b57954"), Color("7b6770")][style % 4]
+    _box(p, Vector3(0, size.y + 0.075, 0), Vector3(size.x * 1.17, 0.19, size.z * 1.21), roof_color, 0.92)
+    _box(p, Vector3(0, size.y + 0.17, 0), Vector3(size.x * 0.82, 0.055, size.z * 0.83), roof_color.darkened(0.12), 0.95)
+    # Recessed glazing, hand-laid window frames, door and hardware.
+    for wx in [-size.x * 0.24, size.x * 0.24]:
+        var wy := size.y * 0.60
+        _box(p, Vector3(wx, wy, size.z * 0.51), Vector3(0.19, 0.29, 0.055), Color("c7bea6"), 0.91)
+        _box(p, Vector3(wx, wy, size.z * 0.546), Vector3(0.125, 0.22, 0.02), Color("385f68"), 0.28, 0.07)
+        _box(p, Vector3(wx, wy - 0.15, size.z * 0.554), Vector3(0.22, 0.043, 0.07), Color("8d8272"), 0.92)
+    _box(p, Vector3(0, 0.23, size.z * 0.53), Vector3(0.20, 0.42, 0.05), Color("4c403b"), 0.81)
+    _box(p, Vector3(0.05, 0.24, size.z * 0.56), Vector3(0.025, 0.027, 0.017), Color("dfb778"), 0.36)
+    if style == 1:
+        _box(p, Vector3(size.x * 0.27, size.y + 0.33, -size.z * 0.24), Vector3(0.17, 0.4, 0.16), Color("80645a"), 0.96)
 
 func _build_containers() -> void:
     # Stacked shipping containers laid out across the dock (not in the water).
@@ -277,10 +292,10 @@ func _build_breakwater() -> void:
         var t := float(i) / 29.0
         var z := 2.5 + t * 5.55
         var x := 4.6 + 2.6 * sin(t * PI * 0.65)
-        _sphere(world, Vector3(x, SEA_LEVEL + 0.08, z), Vector3(0.46, 0.38, 0.47), Color("b6b6a8") if i % 3 else Color("c7c3b6"))
+        _sphere(world, Vector3(x, SEA_LEVEL + 0.08, z), Vector3(0.46, 0.38, 0.47), Color("9f9e8d") if i % 3 else Color("b1a995"))
         if i % 2 == 0:
-            _sphere(world, Vector3(x + 0.34, SEA_LEVEL - 0.02, z + 0.17), Vector3(0.3, 0.24, 0.3), Color("a0afa8"))
-    _cylinder(world, Vector3(7.1, 0.64, 6.7), 0.25, 1.9, Color("f9f3e6"))
+            _sphere(world, Vector3(x + 0.34, SEA_LEVEL - 0.02, z + 0.17), Vector3(0.3, 0.24, 0.3), Color("87978c"))
+    _cylinder(world, Vector3(7.1, 0.64, 6.7), 0.25, 1.9, Color("ddd5bc"))
     for i in range(3):
         _cylinder(world, Vector3(7.1, 0.45 + i * 0.55, 6.7), 0.259, 0.20, Color("d46655"))
     _cylinder(world, Vector3(7.1, 1.64, 6.7), 0.35, 0.13, Color("d86f60"))
@@ -292,8 +307,8 @@ func _build_freighter() -> void:
     freighter.position = ship_origin
     world.add_child(freighter)
     _box(freighter, Vector3(0, 0, 0), Vector3(5.1, 0.58, 1.65), Color("395766"), 0.2, 0.48)
-    _box(freighter, Vector3(0, 0.31, 0), Vector3(4.66, 0.1, 1.45), Color("e8e2d4"))
-    _box(freighter, Vector3(-1.89, 0.91, 0), Vector3(0.95, 1.0, 1.15), Color("e5e6e3"))
+    _box(freighter, Vector3(0, 0.31, 0), Vector3(4.66, 0.1, 1.45), Color("bbbbb0"))
+    _box(freighter, Vector3(-1.89, 0.91, 0), Vector3(0.95, 1.0, 1.15), Color("d6d0bf"))
     _box(freighter, Vector3(-1.92, 1.46, 0), Vector3(1.08, 0.1, 1.27), Color("e8a268"))
     _box(freighter, Vector3(-1.88, 1.12, 0.6), Vector3(0.76, 0.22, 0.04), Color("6a9ba3"))
     for row in range(2):
@@ -309,9 +324,9 @@ func _build_boats() -> void:
         boat.name = "Sailboat_%d" % i
         boat.position = Vector3(-9.6 + float(i % 4) * 3.52, SEA_LEVEL + 0.20, -2.6 + float(int(i / 4)) * 4.3)
         world.add_child(boat)
-        _box(boat, Vector3.ZERO, Vector3(0.62, 0.16, 1.15), Color("f1e0c2"))
+        _box(boat, Vector3.ZERO, Vector3(0.62, 0.16, 1.15), Color("dcc6a5"))
         _rod(boat, Vector3(0, 0.06, 0), Vector3(0, 1.23, 0), 0.025, Color("a08165"))
-        _sail(boat, Color("fff9e8"))
+        _sail(boat, Color("e9dbbd"))
         boat.set_meta("base_y", boat.position.y)
         floaters.append(boat)
     for i in range(3):
@@ -319,7 +334,7 @@ func _build_boats() -> void:
         tug.position = Vector3(-7.3 + i * 4.05, SEA_LEVEL + 0.22, 6.15)
         world.add_child(tug)
         _box(tug, Vector3.ZERO, Vector3(1.04, 0.24, 0.54), Color("c66b41"))
-        _box(tug, Vector3(0, 0.28, 0), Vector3(0.39, 0.34, 0.42), Color("f2e3c5"))
+        _box(tug, Vector3(0, 0.28, 0), Vector3(0.39, 0.34, 0.42), Color("d9c5a5"))
         tug.set_meta("base_y", tug.position.y)
         floaters.append(tug)
 
@@ -336,7 +351,7 @@ func _sail(parent: Node3D, color: Color) -> void:
     var instance := MeshInstance3D.new()
     instance.mesh = mesh
     var sail_mat := _mat(color, 0.8, 0.0, true)
-    sail_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    sail_mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
     instance.material_override = sail_mat
     parent.add_child(instance)
 
@@ -356,7 +371,7 @@ func _build_decorations() -> void:
         _cylinder(world, Vector3(10.42, 1.19, -6.9 + i * 1.3), 0.09, 0.31, Color("526a6d"))
     for i in range(6):
         var x := -9.5 + i * 3.35
-        _sphere(world, Vector3(x, 0.82, -5.3), Vector3(0.23, 0.09, 0.23), Color("efdfc5"))
+        _sphere(world, Vector3(x, 0.82, -5.3), Vector3(0.23, 0.09, 0.23), Color("d0bd9f"))
 
 func _make_hud() -> void:
     var layer := CanvasLayer.new()
@@ -470,7 +485,7 @@ func _toggle_sail() -> void:
 
 func _reset() -> void:
     angle = -0.69
-    distance = 26.8
+    distance = 25.4
     sailing = true
     _update_camera()
     press_targets.clear()
