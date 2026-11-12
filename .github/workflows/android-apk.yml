@@ -1,0 +1,59 @@
+name: Build Harbor Jelly Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'harbor-source.tar.xz.b64'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Expand Harbor Jelly source
+        shell: bash
+        run: |
+          set -eu
+          base64 -d harbor-source.tar.xz.b64 | tar -xJf -
+          test -f project.godot
+          test -f scripts/harbor.gd
+      - name: Publish extracted source files
+        shell: bash
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add project.godot export_presets.cfg scenes scripts shaders README-中文.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish expanded Godot source"
+            git push
+          fi
+      - name: Import and validate Godot project
+        shell: bash
+        run: |
+          set -eu
+          godot --version
+          godot --headless --editor --path . --quit
+      - name: Export debug Android APK
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p build
+          godot --headless --path . --export-debug Android build/HarborJelly-debug.apk
+          test -s build/HarborJelly-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HarborJelly-Android-debug-APK
+          path: build/HarborJelly-debug.apk
+          if-no-files-found: error
+          retention-days: 14
