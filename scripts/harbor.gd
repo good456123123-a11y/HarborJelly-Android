@@ -58,7 +58,7 @@ func _process(delta: float) -> void:
     if is_instance_valid(freighter):
         _rock_boat(freighter, 4.1, 1.35, ship_origin.y, delta)
     if hud_info != null:
-        hud_info.text = "JELLY  %.0f%%   |   %s" % [wobble_strength * 100.0, "SAILING" if sailing else "PAUSED"]
+        hud_info.text = "果冻强度 %.0f%%  |  %s" % [wobble_strength * 100.0, "航行中" if sailing else "已暂停"]
 
 
 func _water_height_at(point: Vector2) -> float:
@@ -330,12 +330,12 @@ func _make_hud() -> void:
     top.position = Vector2(34, 22)
     root.add_child(top)
     var heading := Label.new()
-    heading.text = "Harbor\nJelly."
+    heading.text = "果冻\n港湾"
     heading.add_theme_color_override("font_color", Color("413c3b"))
     heading.add_theme_font_size_override("font_size", 40)
     top.add_child(heading)
     var subtitle := Label.new()
-    subtitle.text = "A tiny interactive jelly sea"
+    subtitle.text = "轻轻一触，海面摇晃"
     subtitle.add_theme_font_size_override("font_size", 16)
     subtitle.add_theme_color_override("font_color", Color("6b7777"))
     top.add_child(subtitle)
@@ -361,17 +361,17 @@ func _make_hud() -> void:
     content.add_theme_constant_override("separation", 6)
     panel.add_child(content)
     var title := Label.new()
-    title.text = "THE HARBOR  /  LIVE"
+    title.text = "港口 · 实时互动"
     title.add_theme_font_size_override("font_size", 17)
     title.add_theme_color_override("font_color", Color("4b514d"))
     content.add_child(title)
     var choose := HBoxContainer.new()
     content.add_child(choose)
-    _button(choose, "HORN", _horn)
-    _button(choose, "SAIL / STOP", _toggle_sail)
-    _button(choose, "RESET", _reset)
+    _button(choose, "水花", _horn)
+    _button(choose, "航行／暂停", _toggle_sail)
+    _button(choose, "重置", _reset)
     content.add_child(HSeparator.new())
-    _panel_label(content, "JELLY   /   FIRMNESS & WAVES")
+    _panel_label(content, "果冻弹性与波纹强度")
     var slider := HSlider.new()
     slider.min_value = 0.0
     slider.max_value = 2.0
@@ -380,15 +380,16 @@ func _make_hud() -> void:
     slider.custom_minimum_size = Vector2(0, 24)
     slider.value_changed.connect(_change_wobble)
     content.add_child(slider)
-    _panel_label(content, "Drag sea: ripple / drag sky: rotate")
-    _panel_label(content, "Pinch: zoom  /  tap: splash")
+    _panel_label(content, "拖动海面：制造波纹")
+    _panel_label(content, "拖动天空：旋转视角")
+    _panel_label(content, "双指缩放；轻点：溅起水花")
     content.add_child(HSeparator.new())
     hud_info = Label.new()
     hud_info.add_theme_font_size_override("font_size", 13)
     hud_info.add_theme_color_override("font_color", Color("59665f"))
     content.add_child(hud_info)
     var tip := Label.new()
-    tip.text = "Press the water. Watch the boats bob."
+    tip.text = "按一按果冻海面，看小船随波起伏。"
     tip.position = Vector2(35, 655)
     tip.add_theme_font_size_override("font_size", 16)
     tip.add_theme_color_override("font_color", Color("575f5c"))
@@ -405,7 +406,7 @@ func _button(parent: Node, title: String, callback: Callable) -> void:
     var button := Button.new()
     button.text = title
     button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    button.add_theme_font_size_override("font_size", 12)
+    button.add_theme_font_size_override("font_size", 14)
     button.pressed.connect(callback)
     parent.add_child(button)
 
