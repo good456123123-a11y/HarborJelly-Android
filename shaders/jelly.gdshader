@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_always, cull_disabled, diffuse_burley, specular_schlick_ggx;
 
-uniform vec4 sea_tint : source_color = vec4(0.055, 0.76, 0.72, 0.86);
+uniform vec4 sea_tint : source_color = vec4(0.035, 0.42, 0.52, 0.91);
 uniform float clock = 0.0;
 uniform float wobble = 1.0;
 // Each impulse stores surface x,z, time since scene start, and impulse strength.
@@ -41,12 +41,18 @@ void vertex() {
 }
 
 void fragment() {
+    // Deep teal body, lighter translucent edges and restrained blue highlights.
+    float wave_light = clamp(v_height * 1.4, -0.26, 0.26);
+    float clearance = min(12.0 - abs(v_position.x), 8.75 - abs(v_position.y));
+    float rim = 1.0 - smoothstep(0.0, 2.15, clearance);
     float swirl = sin(v_position.x * 2.9 + clock * 0.33) * sin(v_position.y * 3.4 - clock * 0.43);
-    float highlight = smoothstep(0.42, 0.98, swirl);
-    float turquoise = clamp(v_height * 0.65 + highlight * 0.055, -0.2, 0.2);
-    ALBEDO = sea_tint.rgb + vec3(turquoise * 0.29, turquoise * 0.15, turquoise * 0.05);
-    ROUGHNESS = 0.17;
-    METALLIC = 0.08;
-    SPECULAR = 0.91;
-    ALPHA = sea_tint.a;
+    float shimmer = smoothstep(0.72, 1.0, swirl);
+    vec3 deep_teal = vec3(0.014, 0.19, 0.29);
+    vec3 body = mix(deep_teal, sea_tint.rgb, 0.52 + rim * 0.38);
+    ALBEDO = body + vec3(wave_light * 0.12, wave_light * 0.10, wave_light * 0.08);
+    ALBEDO += shimmer * vec3(0.006, 0.037, 0.050);
+    ROUGHNESS = 0.21;
+    METALLIC = 0.03;
+    SPECULAR = 0.75;
+    ALPHA = clamp(sea_tint.a + rim * 0.04, 0.0, 1.0);
 }
