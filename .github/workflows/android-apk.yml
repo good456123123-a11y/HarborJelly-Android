@@ -40,6 +40,15 @@ jobs:
             git commit -m "Publish expanded Godot source"
             git push
           fi
+      - name: Configure Android SDK and Godot export templates
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
+          cp -a /root/.local/share/godot/export_templates/. "$HOME/.local/share/godot/export_templates/"
+          cp -a /root/.config/godot/. "$HOME/.config/godot/"
+          test -s "$HOME/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk"
+          test -s /root/debug.keystore
       - name: Import and validate Godot project
         shell: bash
         run: |
