@@ -7,6 +7,7 @@ on:
     paths:
       - 'harbor-source.tar.xz.b64'
       - 'export_presets.cfg'
+      - 'project.godot'
       - '.github/workflows/android-apk.yml'
 
 permissions:
