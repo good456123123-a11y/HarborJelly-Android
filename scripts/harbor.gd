@@ -7,15 +7,15 @@ const WATER_W = 24.0
 const WATER_D = 17.5
 const SEA_LEVEL = 0.19
 const COLORS = [
-    Color("b9483e"), Color("dc9b3b"), Color("d9c464"),
-    Color("397a69"), Color("427e9d"), Color("555b92"), Color("ad6688")
+    Color("d56b58"), Color("e2ad55"), Color("e8cf76"),
+    Color("4f9b84"), Color("619eba"), Color("8375b4"), Color("ce87ab")
 ]
 
 var world: Node3D
 var camera: Camera3D
 var water_material: ShaderMaterial
 var angle := -0.69
-var distance := 29.0
+var distance := 26.8
 var elapsed := 0.0
 var impulse_slot := 0
 var last_splash := -1.0
@@ -23,6 +23,9 @@ var wobble_strength := 0.95
 var floaters: Array[Node3D] = []
 var touches := {}
 var touch_water := {}
+var press_targets := {}
+var finger_a := Vector4(100.0, 100.0, 0.0, 0.0)
+var finger_b := Vector4(100.0, 100.0, 0.0, 0.0)
 var mouse_water_drag := false
 var splash_impulses: Array[Vector4] = [
     Vector4(100.0, 100.0, -100.0, 0.0),
@@ -46,6 +49,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
     elapsed += delta
     water_material.set_shader_parameter("clock", elapsed)
+    _update_pressing(delta)
     # All floating boats sample the same wave function used by the water shader.
     # Surface height, pitch and roll therefore respond to actual finger ripples.
     for item in floaters:
@@ -61,15 +65,52 @@ func _process(delta: float) -> void:
         hud_info.text = "果冻强度 %.0f%%  |  %s" % [wobble_strength * 100.0, "航行中" if sailing else "已暂停"]
 
 
+func _update_pressing(delta: float) -> void:
+    # Keep the contact dimple present while held, then ease it away on release.
+    # Sending two active contacts keeps the GPU surface and CPU buoyancy in sync.
+    var points: Array = press_targets.values()
+    var response := clampf(delta * 10.5, 0.0, 1.0)
+    if points.size() > 0:
+        var a: Vector2 = points[0]
+        finger_a.x = a.x
+        finger_a.y = a.y
+        finger_a.z = lerpf(finger_a.z, 1.0, response)
+    else:
+        finger_a.z = lerpf(finger_a.z, 0.0, response)
+    if points.size() > 1:
+        var b: Vector2 = points[1]
+        finger_b.x = b.x
+        finger_b.y = b.y
+        finger_b.z = lerpf(finger_b.z, 1.0, response)
+    else:
+        finger_b.z = lerpf(finger_b.z, 0.0, response)
+    water_material.set_shader_parameter("finger_a", finger_a)
+    water_material.set_shader_parameter("finger_b", finger_b)
+
+
+func _finger_height(point: Vector2, finger: Vector4) -> float:
+    if finger.z < 0.001:
+        return 0.0
+    var r: float = point.distance_to(Vector2(finger.x, finger.y))
+    var core: float = exp(-0.5 * pow(r / 1.32, 2.0))
+    var shoulder: float = exp(-0.5 * pow((r - 2.15) / 0.82, 2.0))
+    return finger.z * (-0.24 * core + 0.046 * shoulder)
+
+
 func _water_height_at(point: Vector2) -> float:
-    var h := 0.062 * sin(point.x * 0.85 + elapsed * 1.05) * cos(point.y * 0.72 - elapsed * 0.68)
-    h += 0.030 * sin((point.x + point.y) * 1.7 - elapsed * 1.25)
+    # Mirror the shader formula so boats truly follow the displaced surface.
+    var h := 0.030 * sin(point.x * 0.85 + elapsed * 0.9) * cos(point.y * 0.72 - elapsed * 0.62)
+    h += 0.016 * sin((point.x + point.y) * 1.65 - elapsed * 0.94)
+    h += _finger_height(point, finger_a) + _finger_height(point, finger_b)
     for hit in splash_impulses:
         var age: float = elapsed - hit.z
-        if age >= 0.0 and age <= 6.5:
+        if age >= 0.0 and age <= 5.0:
             var r: float = point.distance_to(Vector2(hit.x, hit.y))
-            var front: float = r - age * 3.3
-            h += hit.w * cos(front * 4.2) * exp(-abs(front) * 0.83) * exp(-age * 0.36)
+            var front: float = r - age * 2.45
+            var band: float = exp(-0.5 * pow(front / 0.80, 2.0))
+            var ring: float = sin(front * 2.65) * band * exp(-age * 0.74)
+            var soft_center: float = -0.44 * exp(-0.5 * pow(r / 0.96, 2.0)) * exp(-age * 2.2)
+            h += hit.w * (ring + soft_center)
     return wobble_strength * h
 
 
@@ -93,15 +134,15 @@ func _create_world() -> void:
     var environment := WorldEnvironment.new()
     environment.environment = Environment.new()
     environment.environment.background_mode = Environment.BG_COLOR
-    environment.environment.background_color = Color("dbe4df")
+    environment.environment.background_color = Color("dce8e3")
     environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
     environment.environment.ambient_light_color = Color("ffffff")
-    environment.environment.ambient_light_energy = 0.42
+    environment.environment.ambient_light_energy = 0.55
     environment.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     add_child(environment)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-55.0, -29.0, 0.0)
-    sun.light_energy = 0.93
+    sun.light_energy = 0.99
     sun.light_color = Color("ffedce")
     sun.shadow_enabled = true
     add_child(sun)
@@ -123,9 +164,9 @@ func _create_world() -> void:
 
 func _build_jelly() -> void:
     _box(world, Vector3(0, -0.9, 0), Vector3(WATER_W + 0.3, 0.12, WATER_D + 0.3), Color("d4cbbd"))
-    var jelly := _box(world, Vector3(0, -0.31, 0), Vector3(WATER_W, 1.10, WATER_D), Color(0.02, 0.43, 0.50, 0.72), 0.13, 0.12)
+    var jelly := _box(world, Vector3(0, -0.31, 0), Vector3(WATER_W, 1.10, WATER_D), Color(0.035, 0.51, 0.53, 0.78), 0.26, 0.05)
     jelly.name = "TranslucentJellyBlock"
-    _box(world, Vector3(0, -0.76, 0), Vector3(WATER_W - 0.1, 0.13, WATER_D - 0.1), Color("185265"), 0.6)
+    _box(world, Vector3(0, -0.76, 0), Vector3(WATER_W - 0.1, 0.13, WATER_D - 0.1), Color("217486"), 0.6)
     var mesh := PlaneMesh.new()
     mesh.size = Vector2(WATER_W - 0.04, WATER_D - 0.04)
     mesh.subdivide_width = 120
@@ -144,7 +185,7 @@ func _build_jelly() -> void:
 
 func _build_quays() -> void:
     # Rear shoreline (pastel old town) and harbour cargo apron.
-    _box(world, Vector3(0.8, 0.52, -8.25), Vector3(21.4, 0.82, 4.2), Color("a7aa9e"))
+    _box(world, Vector3(0.8, 0.52, -8.25), Vector3(21.4, 0.82, 4.2), Color("b8b7ac"))
     _box(world, Vector3(0.8, 0.98, -7.16), Vector3(21.4, 0.13, 1.37), Color("d1c0a6"))
     _box(world, Vector3(10.55, 0.57, -1.15), Vector3(2.40, 0.76, 14.65), Color("858f8a"))
     _box(world, Vector3(10.42, 0.98, -1.15), Vector3(1.85, 0.10, 14.65), Color("bbb3a3"))
@@ -416,7 +457,7 @@ func _change_wobble(value: float) -> void:
 
 func _horn() -> void:
     horn_count += 1
-    _splash(Vector2(-4.4, 2.45), 0.9)
+    _splash(Vector2(-4.4, 2.45), 0.21)
     # Visual horn pulse without external audio; an original recording can be added later.
     if is_instance_valid(freighter):
         var puff := _sphere(world, freighter.position + Vector3(-1.9, 2.2, 0.0), Vector3(0.16, 0.16, 0.16), Color("f6f1e3"))
@@ -429,14 +470,19 @@ func _toggle_sail() -> void:
 
 func _reset() -> void:
     angle = -0.69
-    distance = 29.0
+    distance = 26.8
     sailing = true
     _update_camera()
+    press_targets.clear()
+    finger_a.z = 0.0
+    finger_b.z = 0.0
+    water_material.set_shader_parameter("finger_a", finger_a)
+    water_material.set_shader_parameter("finger_b", finger_b)
     for i in range(splash_impulses.size()):
         splash_impulses[i] = Vector4(100.0, 100.0, -100.0, 0.0)
         water_material.set_shader_parameter(["hit_a", "hit_b", "hit_c", "hit_d"][i], splash_impulses[i])
 
-func _splash(point: Vector2, force: float = 0.58) -> void:
+func _splash(point: Vector2, force: float = 0.15) -> void:
     var slot: int = impulse_slot % splash_impulses.size()
     var key: String = ["hit_a", "hit_b", "hit_c", "hit_d"][slot]
     impulse_slot += 1
@@ -465,8 +511,12 @@ func _unhandled_input(event: InputEvent) -> void:
             var hit = _water_hit(e.position)
             touch_water[e.index] = hit != null
             if hit != null:
-                _splash(hit, 0.74)
+                press_targets[e.index] = hit
+                _splash(hit, 0.12)
         else:
+            if press_targets.has(e.index):
+                _splash(press_targets[e.index], 0.14)
+                press_targets.erase(e.index)
             touches.erase(e.index)
             touch_water.erase(e.index)
     elif event is InputEventScreenDrag:
@@ -479,38 +529,55 @@ func _unhandled_input(event: InputEvent) -> void:
             var old_distance := (a - b).length()
             var old_a := a - drag.relative if ids[0] == drag.index else a
             var old_b := b - drag.relative if ids[1] == drag.index else b
-            distance = clampf(distance - (old_distance - (old_a - old_b).length()) * 0.023, 19.5, 46.0)
+            distance = clampf(distance - (old_distance - (old_a - old_b).length()) * 0.023, 18.5, 44.0)
             _update_camera()
         elif bool(touch_water.get(drag.index, false)):
             var hit = _water_hit(drag.position)
-            if hit != null and elapsed - last_splash > 0.07:
-                var force := clampf(drag.relative.length() * 0.023, 0.18, 0.85)
-                _splash(hit, force)
+            if hit != null:
+                press_targets[drag.index] = hit
+                if elapsed - last_splash > 0.14:
+                    var force := clampf(drag.relative.length() * 0.007, 0.035, 0.18)
+                    _splash(hit, force)
+            else:
+                press_targets.erase(drag.index)
         else:
             angle -= drag.relative.x * 0.0045
             _update_camera()
     elif event is InputEventMouseButton:
+        # Android synthesizes mouse events from touch; prevent double waves.
+        if OS.has_feature("mobile"):
+            return
         var mouse := event as InputEventMouseButton
         if mouse.button_index == MOUSE_BUTTON_LEFT:
             if mouse.pressed:
                 var hit = _water_hit(mouse.position)
                 mouse_water_drag = hit != null
                 if hit != null:
-                    _splash(hit, 0.74)
+                    press_targets[-1] = hit
+                    _splash(hit, 0.12)
             else:
+                if press_targets.has(-1):
+                    _splash(press_targets[-1], 0.14)
+                    press_targets.erase(-1)
                 mouse_water_drag = false
         elif mouse.pressed and mouse.button_index == MOUSE_BUTTON_WHEEL_UP:
-            distance = clampf(distance - 1.5, 19.5, 46.0)
+            distance = clampf(distance - 1.5, 18.5, 44.0)
             _update_camera()
         elif mouse.pressed and mouse.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-            distance = clampf(distance + 1.5, 19.5, 46.0)
+            distance = clampf(distance + 1.5, 18.5, 44.0)
             _update_camera()
     elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+        if OS.has_feature("mobile"):
+            return
         var motion := event as InputEventMouseMotion
         if mouse_water_drag:
             var hit = _water_hit(motion.position)
-            if hit != null and elapsed - last_splash > 0.07:
-                _splash(hit, clampf(motion.relative.length() * 0.023, 0.18, 0.85))
+            if hit != null:
+                press_targets[-1] = hit
+                if elapsed - last_splash > 0.14:
+                    _splash(hit, clampf(motion.relative.length() * 0.007, 0.035, 0.18))
+            else:
+                press_targets.erase(-1)
         else:
             angle -= motion.relative.x * 0.0045
             _update_camera()
