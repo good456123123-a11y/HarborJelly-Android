@@ -1,0 +1,90 @@
+name: Build Tidewater Chinese Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["build/tidewater-cn-android"]
+    paths:
+      - "tidewater-build/source.patch.xz.b64"
+      - "tidewater-build/native-overlay.tar.xz.b64"
+      - ".github/workflows/tidewater-cn-android.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Prepare Chinese mobile source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone https://github.com/zzzhengqi/tidewater.git tidewater-work
+          git -C tidewater-work checkout d6afdd88c1883c8138e8c1bac8e8e2b18e066228
+          base64 -d tidewater-build/source.patch.xz.b64 | xz -d | git -C tidewater-work apply -
+          cd tidewater-work
+          npm ci
+          npm run build
+          npx cap add android
+          base64 -d "$GITHUB_WORKSPACE/tidewater-build/native-overlay.tar.xz.b64" | tar -xJf - -C android
+          npx cap sync android
+          node --test test/*.test.js
+
+      - name: Build installable APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd tidewater-work/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Package APK and source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p build-output
+          cp tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk build-output/Tidewater-Android-CN-v1.0.apk
+          cd tidewater-work
+          zip -qr "$GITHUB_WORKSPACE/build-output/Tidewater-Android-CN-v1.0-Source.zip" .             -x ".git/*" "node_modules/*" "dist/*" "android/.gradle/*" "android/build/*"                "android/app/build/*" "android/app/src/main/assets/public/*"
+          cd "$GITHUB_WORKSPACE"
+          test -s build-output/Tidewater-Android-CN-v1.0.apk
+          test -s build-output/Tidewater-Android-CN-v1.0-Source.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tidewater-Android-CN-v1.0
+          path: build-output/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish build files on isolated branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -f build-output/Tidewater-Android-CN-v1.0.apk build-output/Tidewater-Android-CN-v1.0-Source.zip
+          git commit -m "ci: publish Tidewater Chinese Android build [skip ci]"
+          git push
