@@ -98,7 +98,8 @@ jobs:
           const info=await p.evaluate(()=>({lod:__app.terrain.lod.count,waterLod:__app.oceanLOD.count,camera:__app.camera.position.toArray(),frame:__app.engine.frame,textureLimit:__app.sampledTextureLimit,mode:__app.terrain.material.underwaterLighting}));
           console.log('SCENE',JSON.stringify(info)); fs.writeFileSync('../build-output/scene-info.json',JSON.stringify(info));
           await p.screenshot({path:'../build-output/terrain-fixed.png'});
-          } catch(e){console.log('QA_FAILURE',e.message);logs.push(e.message);await p.screenshot({path:'../build-output/terrain-failed.png'}).catch(()=>{});}
+          } catch(e){process.exitCode=1; console.log('QA_FAILURE',e.message);logs.push(e.message);await p.screenshot({path:'../build-output/terrain-failed.png'}).catch(()=>{});}
+          if(logs.some(s=>/GPUValidationError|pipeline creation failed/.test(s))) process.exitCode=1;
           fs.writeFileSync('../build-output/terrain-errors.txt',logs.join('\n')); await b.close();
           })();
           JS
