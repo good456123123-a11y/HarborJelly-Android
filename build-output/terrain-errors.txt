@@ -1,40 +1,6 @@
 warning: THREE.WebGPURenderer: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.
-error: THREE.WebGPURenderer: Uncaptured WebGPU GPUValidationError: The number of sampled textures (17) in the Fragment stage exceeds the maximum per-stage limit (16).
- - While validating binding counts
- - While validating [BindGroupLayoutDescriptor]
- - While calling [Device].CreateBindGroupLayout([BindGroupLayoutDescriptor]).
-
-warning: The number of sampled textures (17) in the Fragment stage exceeds the maximum per-stage limit (16).
- - While validating binding counts
- - While validating [BindGroupLayoutDescriptor]
- - While calling [Device].CreateBindGroupLayout([BindGroupLayoutDescriptor]).
-
-error: THREE.WebGPURenderer: Uncaptured WebGPU GPUValidationError: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While validating [BindGroupDescriptor ""bindGroup_object""] against [Invalid BindGroupLayout (unlabeled)]
- - While calling [Device].CreateBindGroup([BindGroupDescriptor ""bindGroup_object""]).
-
-warning: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While validating [BindGroupDescriptor ""bindGroup_object""] against [Invalid BindGroupLayout (unlabeled)]
- - While calling [Device].CreateBindGroup([BindGroupDescriptor ""bindGroup_object""]).
-
-error: THREE.WebGPURenderer: Uncaptured WebGPU GPUValidationError: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While validating [BindGroupDescriptor ""bindGroup_object""] against [Invalid BindGroupLayout (unlabeled)]
- - While calling [Device].CreateBindGroup([BindGroupDescriptor ""bindGroup_object""]).
-
-warning: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While validating [BindGroupDescriptor ""bindGroup_object""] against [Invalid BindGroupLayout (unlabeled)]
- - While calling [Device].CreateBindGroup([BindGroupDescriptor ""bindGroup_object""]).
-
-error: THREE.WebGPURenderer: Uncaptured WebGPU GPUValidationError: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While calling [Device].CreatePipelineLayout([PipelineLayoutDescriptor]).
-
-warning: [Invalid BindGroupLayout (unlabeled)] is invalid due to a previous error.
- - While calling [Device].CreatePipelineLayout([PipelineLayoutDescriptor]).
-
-error: THREE.WebGPURenderer: Async render pipeline creation failed (renderPipeline_NodeMaterial_61): [Invalid PipelineLayout (unlabeled)] is invalid due to a previous error.
-    at ValidateObject (../../third_party/dawn/src/dawn/native/Device.cpp:874)
-
 error: OperationError: A valid external Instance reference no longer exists.
+pageerror: Instance dropped in popErrorScope
 pageerror: Instance dropped in popErrorScope
 pageerror: Instance dropped in popErrorScope
 pageerror: Instance dropped in popErrorScope
