@@ -73,6 +73,25 @@ jobs:
           p.write_text(s)
           
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/ocean/UnderwaterLighting.js')
+          s = p.read_text()
+          s = s.replace('shoreSim = null } )', 'shoreSim = null, textureBudget = Infinity } )')
+          old = "const mode = ( builder ) => ( builder.material && builder.material.underwaterLighting ) || 'full';"
+          new = "const mode = ( builder ) => { const m = ( builder.material && builder.material.underwaterLighting ) || 'full'; return textureBudget < 21 && m === 'full' ? 'lite' : m; };"
+          assert old in s
+          p.write_text(s.replace(old, new))
+          p = Path('src/App.js')
+          s = p.read_text()
+          old = 'shore: this.shore, surface: this.surface, shoreSim: this.shoreSim,'
+          assert s.count(old) == 1
+          s = s.replace(old, old + '\n\t\t\ttextureBudget: this.sampledTextureLimit,')
+          s = s.replace('this.waterMaterial.clouds = this.clouds;', "this.waterMaterial.clouds = this.sampledTextureLimit < 24 ? null : this.clouds;\n\t\tif ( this.sampledTextureLimit < 24 ) { this.surface.detail = null; this.surface.foamShading = null; }")
+          s = s.replace('this.ocean.receiveShadow = true;', 'this.ocean.receiveShadow = this.sampledTextureLimit >= 24;')
+          p.write_text(s)
+          
+          PY
           npm ci
           npm run build
           npx cap add android
@@ -126,4 +145,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git add -f build-output/Tidewater-Android-CN-v1.2.apk build-output/Tidewater-Android-CN-v1.2-Source.zip
           git commit -m "ci: publish Tidewater Chinese Android build [skip ci]"
+          git pull --rebase origin build/tidewater-cn-android
           git push
