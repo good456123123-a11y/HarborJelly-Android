@@ -50,10 +50,10 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           changes = {
-           'src/App.js': [('exposure: 0.55,', 'exposure: 0.72,'), ('dynamicResolution: true,', 'dynamicResolution: false,')],
+           'src/App.js': [('exposure: 0.55,', 'exposure: 0.55,'), ('dynamicResolution: true,', 'dynamicResolution: false,')],
            'src/core/Engine.js': [('renderer.setPixelRatio( 1 );', "this.outputPixelRatio = /Android|iPhone|iPad|iPod/i.test( navigator.userAgent ) || navigator.maxTouchPoints > 1 ? Math.min( 1.5, window.devicePixelRatio || 1 ) : 1;\n\t\trenderer.setPixelRatio( this.outputPixelRatio );"), ('renderer.setPixelRatio( this.renderScale );', 'renderer.setPixelRatio( this.outputPixelRatio * this.renderScale );')],
            'src/post/PostFX.js': [('vignette: uniform( 0.28 )', 'vignette: uniform( 0.20 )')],
-           'src/ui/AppUI.js': [('app.settings.exposure = 0.55 *', 'app.settings.exposure = 0.72 *')],
+           'src/ui/AppUI.js': [('app.settings.exposure = 0.55 *', 'app.settings.exposure = 0.55 *')],
           }
           for filename, replacements in changes.items():
               p = Path(filename)
@@ -63,11 +63,21 @@ jobs:
                   text = text.replace(old, new)
               p.write_text(text)
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/App.js')
+          s = p.read_text()
+          marker = '\t\tinstallUnderwaterLighting( {'
+          assert s.count(marker) == 1
+          s = s.replace(marker, "\t\t// Fit detailed terrain and rocks within the actual device texture binding limit.\n\t\tthis.sampledTextureLimit = renderer.backend.device.limits.maxSampledTexturesPerShaderStage;\n\t\tif ( this.sampledTextureLimit < 21 ) {\n\t\t\tunderwaterMode( this.terrain.mesh, 'lite' );\n\t\t\tunderwaterMode( this.rocks.group, 'lite' );\n\t\t\tthis.terrain.material.groundBounce = false;\n\t\t}\n\n" + marker)
+          p.write_text(s)
+          
+          PY
           npm ci
           npm run build
           npx cap add android
           base64 -d "$GITHUB_WORKSPACE/tidewater-build/native-overlay.tar.xz.b64" | tar -xJf - -C android
-          sed -i 's/versionCode 1$/versionCode 2/; s/versionName "1.0"/versionName "1.1"/' android/app/build.gradle
+          sed -i 's/versionCode 1$/versionCode 3/; s/versionName "1.0"/versionName "1.2"/' android/app/build.gradle
           npx cap sync android
           node --test test/*.test.js
 
@@ -92,17 +102,19 @@ jobs:
           mkdir -p build-output
           /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --verbose tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk
           /usr/local/lib/android/sdk/build-tools/36.0.0/aapt dump badging tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk | head -5
-          cp tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk build-output/Tidewater-Android-CN-v1.1.apk
+          cp tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk build-output/Tidewater-Android-CN-v1.2.apk
           cd tidewater-work
-          zip -qr "$GITHUB_WORKSPACE/build-output/Tidewater-Android-CN-v1.1-Source.zip" .             -x ".git/*" "node_modules/*" "dist/*" "android/.gradle/*" "android/build/*"                "android/app/build/*" "android/app/src/main/assets/public/*"
+          zip -qr "$GITHUB_WORKSPACE/build-output/Tidewater-Android-CN-v1.2-Source.zip" .             -x ".git/*" "node_modules/*" "dist/*" "android/.gradle/*" "android/build/*"                "android/app/build/*" "android/app/src/main/assets/public/*"
           cd "$GITHUB_WORKSPACE"
-          test -s build-output/Tidewater-Android-CN-v1.1.apk
-          test -s build-output/Tidewater-Android-CN-v1.1-Source.zip
+          test -s build-output/Tidewater-Android-CN-v1.2.apk
+          test -s build-output/Tidewater-Android-CN-v1.2-Source.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Tidewater-Android-CN-v1.1
-          path: build-output/*
+          name: Tidewater-Android-CN-v1.2
+          path: |
+            build-output/Tidewater-Android-CN-v1.2.apk
+            build-output/Tidewater-Android-CN-v1.2-Source.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -112,6 +124,6 @@ jobs:
           set -euxo pipefail
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add -f build-output/Tidewater-Android-CN-v1.1.apk build-output/Tidewater-Android-CN-v1.1-Source.zip
+          git add -f build-output/Tidewater-Android-CN-v1.2.apk build-output/Tidewater-Android-CN-v1.2-Source.zip
           git commit -m "ci: publish Tidewater Chinese Android build [skip ci]"
           git push
