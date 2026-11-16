@@ -1,0 +1,89 @@
+name: Diagnose Tidewater terrain
+on:
+  push:
+    branches: ["build/tidewater-cn-android"]
+    paths: [".github/workflows/terrain-check.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Prepare Chinese mobile source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone https://github.com/zzzhengqi/tidewater.git tidewater-work
+          git -C tidewater-work checkout d6afdd88c1883c8138e8c1bac8e8e2b18e066228
+          base64 -d tidewater-build/source.patch.xz.b64 | xz -d | git -C tidewater-work apply -
+          cd tidewater-work
+          python3 - <<'PY'
+          from pathlib import Path
+          changes = {
+           'src/App.js': [('exposure: 0.55,', 'exposure: 0.72,'), ('dynamicResolution: true,', 'dynamicResolution: false,')],
+           'src/core/Engine.js': [('renderer.setPixelRatio( 1 );', "this.outputPixelRatio = /Android|iPhone|iPad|iPod/i.test( navigator.userAgent ) || navigator.maxTouchPoints > 1 ? Math.min( 1.5, window.devicePixelRatio || 1 ) : 1;\n\t\trenderer.setPixelRatio( this.outputPixelRatio );"), ('renderer.setPixelRatio( this.renderScale );', 'renderer.setPixelRatio( this.outputPixelRatio * this.renderScale );')],
+           'src/post/PostFX.js': [('vignette: uniform( 0.28 )', 'vignette: uniform( 0.20 )')],
+           'src/ui/AppUI.js': [('app.settings.exposure = 0.55 *', 'app.settings.exposure = 0.72 *')],
+          }
+          for filename, replacements in changes.items():
+              p = Path(filename)
+              text = p.read_text()
+              for old, new in replacements:
+                  assert text.count(old) == 1, (filename, old, text.count(old))
+                  text = text.replace(old, new)
+              p.write_text(text)
+          PY
+          npm ci
+          npm run build
+          node --test test/*.test.js
+
+
+      - name: Capture renderer errors and terrain
+        shell: bash
+        run: |
+          mkdir -p build-output
+          cd tidewater-work
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          npm run dev >../build-output/server.log 2>&1 &
+          cat > terrain-check.cjs <<'JS'
+          const fs = require('fs'); const {chromium} = require('playwright');
+          (async()=> {
+          const logs=[]; const b=await chromium.launch({headless:true,args:['--enable-unsafe-webgpu','--use-angle=swiftshader','--enable-features=Vulkan']});
+          const p=await b.newPage({viewport:{width:960,height:480}}); 
+          p.on('console',m=>{if(m.type()==='error'||m.type()==='warning') {logs.push(m.type()+': '+m.text()); console.log(m.text().slice(0,6000));}});
+          p.on('pageerror',e=>{logs.push('pageerror: '+e.message); console.log(e.message)});
+          try {
+          await p.goto('http://127.0.0.1:5188/?noAudio');
+          console.log('ADAPTER',await p.evaluate(async()=>{const a=await navigator.gpu.requestAdapter(); return {info:{...a?.info},features:a?[...a.features]:[]}}));
+          await p.waitForFunction(()=>window.__app?.post,{timeout:180000});
+          await p.waitForFunction(()=>window.__app?.fps>0,{timeout:180000});
+          await p.evaluate(()=>{window.__view('village')});
+          await p.waitForTimeout(1500);
+          const info=await p.evaluate(()=>({lod:__app.terrain.lod.count,waterLod:__app.oceanLOD.count,camera:__app.camera.position.toArray(),frame:__app.engine.frame}));
+          console.log('SCENE',JSON.stringify(info)); fs.writeFileSync('../build-output/scene-info.json',JSON.stringify(info));
+          await p.screenshot({path:'../build-output/terrain-baseline.png'});
+          } catch(e){console.log('QA_FAILURE',e.message);logs.push(e.message);await p.screenshot({path:'../build-output/terrain-failed.png'}).catch(()=>{});}
+          fs.writeFileSync('../build-output/terrain-errors.txt',logs.join('\n')); await b.close();
+          })();
+          JS
+          node terrain-check.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terrain-diagnostics
+          path: build-output/terrain*
+      - name: Save diagnostic results
+        if: always()
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -f build-output/terrain*
+          git commit -m "diagnostics: capture terrain renderer evidence [skip ci]"
+          git push
