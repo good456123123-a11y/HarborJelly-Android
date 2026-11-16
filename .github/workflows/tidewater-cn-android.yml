@@ -87,7 +87,7 @@ jobs:
           old = 'shore: this.shore, surface: this.surface, shoreSim: this.shoreSim,'
           assert s.count(old) == 1
           s = s.replace(old, old + '\n\t\t\ttextureBudget: this.sampledTextureLimit,')
-          s = s.replace('this.waterMaterial.clouds = this.clouds;', "this.waterMaterial.clouds = this.sampledTextureLimit < 24 ? null : this.clouds;\n\t\tif ( this.sampledTextureLimit < 24 ) { this.surface.detail = null; this.surface.foamShading = null; }")
+          s = s.replace('this.waterMaterial.clouds = this.clouds;', "this.waterMaterial.clouds = this.sampledTextureLimit < 24 ? null : this.clouds;\n\t\tif ( this.sampledTextureLimit < 24 ) { this.surface.detail = null; this.surface.foamShading = null; this.surface.shoreSim = null; }")
           s = s.replace('this.ocean.receiveShadow = true;', 'this.ocean.receiveShadow = this.sampledTextureLimit >= 24;')
           p.write_text(s)
           
@@ -103,8 +103,8 @@ jobs:
       - name: Reuse debug signing key
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: tidewater-debug-key-v1
+          path: build-signing/debug.keystore
+          key: tidewater-explicit-debug-key-v2
 
       - name: Build installable APK
         shell: bash
@@ -112,7 +112,11 @@ jobs:
           set -euxo pipefail
           cd tidewater-work/android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          mkdir -p "$GITHUB_WORKSPACE/build-signing"
+          if [ ! -s "$GITHUB_WORKSPACE/build-signing/debug.keystore" ]; then
+            keytool -genkeypair -keystore "$GITHUB_WORKSPACE/build-signing/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 -storetype JKS
+          fi
+          ./gradlew assembleDebug --no-daemon -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/build-signing/debug.keystore" -Pandroid.injected.signing.store.password=android -Pandroid.injected.signing.key.alias=androiddebugkey -Pandroid.injected.signing.key.password=android
 
       - name: Package APK and source
         shell: bash
