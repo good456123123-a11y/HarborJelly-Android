@@ -47,12 +47,35 @@ jobs:
           git -C tidewater-work checkout d6afdd88c1883c8138e8c1bac8e8e2b18e066228
           base64 -d tidewater-build/source.patch.xz.b64 | xz -d | git -C tidewater-work apply -
           cd tidewater-work
+          python3 - <<'PY'
+          from pathlib import Path
+          changes = {
+           'src/App.js': [('exposure: 0.55,', 'exposure: 0.72,'), ('dynamicResolution: true,', 'dynamicResolution: false,')],
+           'src/core/Engine.js': [('renderer.setPixelRatio( 1 );', "this.outputPixelRatio = /Android|iPhone|iPad|iPod/i.test( navigator.userAgent ) || navigator.maxTouchPoints > 1 ? Math.min( 1.5, window.devicePixelRatio || 1 ) : 1;\n\t\trenderer.setPixelRatio( this.outputPixelRatio );"), ('renderer.setPixelRatio( this.renderScale );', 'renderer.setPixelRatio( this.outputPixelRatio * this.renderScale );')],
+           'src/post/PostFX.js': [('vignette: uniform( 0.28 )', 'vignette: uniform( 0.20 )')],
+           'src/ui/AppUI.js': [('app.settings.exposure = 0.55 *', 'app.settings.exposure = 0.72 *')],
+          }
+          for filename, replacements in changes.items():
+              p = Path(filename)
+              text = p.read_text()
+              for old, new in replacements:
+                  assert text.count(old) == 1, (filename, old, text.count(old))
+                  text = text.replace(old, new)
+              p.write_text(text)
+          PY
           npm ci
           npm run build
           npx cap add android
           base64 -d "$GITHUB_WORKSPACE/tidewater-build/native-overlay.tar.xz.b64" | tar -xJf - -C android
+          sed -i 's/versionCode 1$/versionCode 2/; s/versionName "1.0"/versionName "1.1"/' android/app/build.gradle
           npx cap sync android
           node --test test/*.test.js
+
+      - name: Reuse debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: tidewater-debug-key-v1
 
       - name: Build installable APK
         shell: bash
@@ -67,16 +90,18 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p build-output
-          cp tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk build-output/Tidewater-Android-CN-v1.0.apk
+          /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --verbose tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk
+          /usr/local/lib/android/sdk/build-tools/36.0.0/aapt dump badging tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk | head -5
+          cp tidewater-work/android/app/build/outputs/apk/debug/app-debug.apk build-output/Tidewater-Android-CN-v1.1.apk
           cd tidewater-work
-          zip -qr "$GITHUB_WORKSPACE/build-output/Tidewater-Android-CN-v1.0-Source.zip" .             -x ".git/*" "node_modules/*" "dist/*" "android/.gradle/*" "android/build/*"                "android/app/build/*" "android/app/src/main/assets/public/*"
+          zip -qr "$GITHUB_WORKSPACE/build-output/Tidewater-Android-CN-v1.1-Source.zip" .             -x ".git/*" "node_modules/*" "dist/*" "android/.gradle/*" "android/build/*"                "android/app/build/*" "android/app/src/main/assets/public/*"
           cd "$GITHUB_WORKSPACE"
-          test -s build-output/Tidewater-Android-CN-v1.0.apk
-          test -s build-output/Tidewater-Android-CN-v1.0-Source.zip
+          test -s build-output/Tidewater-Android-CN-v1.1.apk
+          test -s build-output/Tidewater-Android-CN-v1.1-Source.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Tidewater-Android-CN-v1.0
+          name: Tidewater-Android-CN-v1.1
           path: build-output/*
           if-no-files-found: error
           retention-days: 14
@@ -87,6 +112,6 @@ jobs:
           set -euxo pipefail
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add -f build-output/Tidewater-Android-CN-v1.0.apk build-output/Tidewater-Android-CN-v1.0-Source.zip
+          git add -f build-output/Tidewater-Android-CN-v1.1.apk build-output/Tidewater-Android-CN-v1.1-Source.zip
           git commit -m "ci: publish Tidewater Chinese Android build [skip ci]"
           git push
