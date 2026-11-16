@@ -63,7 +63,7 @@ jobs:
           old = 'shore: this.shore, surface: this.surface, shoreSim: this.shoreSim,'
           assert s.count(old) == 1
           s = s.replace(old, old + '\n\t\t\ttextureBudget: this.sampledTextureLimit,')
-          s = s.replace('this.waterMaterial.clouds = this.clouds;', "this.waterMaterial.clouds = this.sampledTextureLimit < 24 ? null : this.clouds;\n\t\tif ( this.sampledTextureLimit < 24 ) { this.surface.detail = null; this.surface.foamShading = null; }")
+          s = s.replace('this.waterMaterial.clouds = this.clouds;', "this.waterMaterial.clouds = this.sampledTextureLimit < 24 ? null : this.clouds;\n\t\tif ( this.sampledTextureLimit < 24 ) { this.surface.detail = null; this.surface.foamShading = null; this.surface.shoreSim = null; }")
           s = s.replace('this.ocean.receiveShadow = true;', 'this.ocean.receiveShadow = this.sampledTextureLimit >= 24;')
           p.write_text(s)
           
